@@ -1,0 +1,914 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Levas Hub",
+   LoadingTitle = "Levas Hub",
+   LoadingSubtitle = "by mini.lèvas :3",
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = nil,
+      FileName = "LevasHub"
+   },
+   KeySystem = true,
+   KeySettings = {
+      Title = "Key",
+      Subtitle = "Key System",
+      Note = "Мое любимое слово",
+      FileName = "My love word",
+      SaveKey = true,
+      GrabKeyFromSite = false,
+      Key = {"GOIDA"}
+   }
+})
+
+local FlyTab = Window:CreateTab("Main", 4483362458)
+
+local MovementSection = FlyTab:CreateSection("Movement")
+
+local walkSpeed = 16
+local jumpPower = 50
+local movementIgnoreCallbacks = false
+local lastWalkSpeed = 16
+local lastJumpPower = 50
+local movementToggleKeybind = Enum.KeyCode.N
+local movementKeybindDebounce = false
+
+local function SafeSetMovement(element, value)
+    if element and element.Set then
+        movementIgnoreCallbacks = true
+        element:Set(value)
+        movementIgnoreCallbacks = false
+        return true
+    end
+    return false
+end
+
+local walkSpeedSlider = FlyTab:CreateSlider({
+    Name = "Скорость ходьбы",
+    Range = {16, 2000},
+    Increment = 1,
+    CurrentValue = walkSpeed,
+    Suffix = "ед/с",
+    Flag = "WalkSpeedSlider",
+    Callback = function(value)
+        if movementIgnoreCallbacks then return end
+        walkSpeed = value
+        lastWalkSpeed = value
+        SafeSetMovement(walkSpeedInput, tostring(value))
+        pcall(function()
+            game:GetService("Players").LocalPlayer.Character.Humanoid.WalkSpeed = value
+        end)
+    end
+})
+
+local walkSpeedInput = FlyTab:CreateInput({
+    Name = "Ручной ввод скорости ходьбы",
+    PlaceholderText = "Введите скорость (16-2000)",
+    RemoveTextAfterFocusLost = false,
+    NumbersOnly = true,
+    CharacterLimit = 3,
+    CurrentValue = tostring(walkSpeed),
+    Flag = "WalkSpeedInput",
+    Callback = function(value)
+        if movementIgnoreCallbacks then return end
+        local num = tonumber(value)
+        if num then
+            num = math.clamp(num, 16, 2000)
+            walkSpeed = num
+            lastWalkSpeed = num
+            SafeSetMovement(walkSpeedSlider, num)
+            pcall(function()
+                game:GetService("Players").LocalPlayer.Character.Humanoid.WalkSpeed = num
+            end)
+        else
+            SafeSetMovement(walkSpeedInput, tostring(walkSpeed))
+        end
+    end
+})
+
+local jumpPowerSlider = FlyTab:CreateSlider({
+    Name = "Сила прыжка",
+    Range = {50, 2000},
+    Increment = 1,
+    CurrentValue = jumpPower,
+    Suffix = "ед",
+    Flag = "JumpPowerSlider",
+    Callback = function(value)
+        if movementIgnoreCallbacks then return end
+        jumpPower = value
+        lastJumpPower = value
+        SafeSetMovement(jumpPowerInput, tostring(value))
+        pcall(function()
+            game:GetService("Players").LocalPlayer.Character.Humanoid.JumpPower = value
+        end)
+    end
+})
+
+local jumpPowerInput = FlyTab:CreateInput({
+    Name = "Ручной ввод силы прыжка",
+    PlaceholderText = "Введите силу (50-2000)",
+    RemoveTextAfterFocusLost = false,
+    NumbersOnly = true,
+    CharacterLimit = 3,
+    CurrentValue = tostring(jumpPower),
+    Flag = "JumpPowerInput",
+    Callback = function(value)
+        if movementIgnoreCallbacks then return end
+        local num = tonumber(value)
+        if num then
+            num = math.clamp(num, 50, 2000)
+            jumpPower = num
+            lastJumpPower = num
+            SafeSetMovement(jumpPowerSlider, num)
+            pcall(function()
+                game:GetService("Players").LocalPlayer.Character.Humanoid.JumpPower = num
+            end)
+        else
+            SafeSetMovement(jumpPowerInput, tostring(jumpPower))
+        end
+    end
+})
+
+local movementMasterToggle = FlyTab:CreateToggle({
+    Name = "Включить все параметры Movement",
+    CurrentValue = true,
+    Flag = "MovementMasterToggle",
+    Callback = function(state)
+        movementIgnoreCallbacks = true
+        
+        if state then
+            walkSpeed = lastWalkSpeed
+            jumpPower = lastJumpPower
+            Rayfield:Notify({
+                Title = "Movement",
+                Content = "Все параметры Movement включены",
+                Duration = 2,
+                Image = nil
+            })
+        else
+            lastWalkSpeed = walkSpeed
+            lastJumpPower = jumpPower
+            walkSpeed = 16
+            jumpPower = 50
+            Rayfield:Notify({
+                Title = "Movement",
+                Content = "Все параметры Movement выключены",
+                Duration = 2,
+                Image = nil
+            })
+        end
+        
+        walkSpeedSlider:Set(walkSpeed)
+        walkSpeedInput:Set(tostring(walkSpeed))
+        jumpPowerSlider:Set(jumpPower)
+        jumpPowerInput:Set(tostring(jumpPower))
+        
+        movementIgnoreCallbacks = false
+        
+        local player = game:GetService("Players").LocalPlayer
+        if player and player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = walkSpeed
+                humanoid.JumpPower = jumpPower
+            end
+        end
+    end
+})
+
+local movementKeybind = FlyTab:CreateKeybind({
+    Name = "Бинд для Movement (по умолчанию N)",
+    CurrentKeybind = "n",
+    HoldToInteract = false,
+    Flag = "MovementKeybind",
+    Callback = function(key)
+        if movementKeybindDebounce then return end
+        movementKeybindDebounce = true
+        
+        if key ~= movementToggleKeybind then
+            if key then
+                movementToggleKeybind = key
+                Rayfield:Notify({
+                    Title = "Movement",
+                    Content = "Клавиша для Movement изменена на: "..tostring(key),
+                    Duration = 2,
+                    Image = nil
+                })
+            end
+        else
+            local newState = not movementMasterToggle.CurrentValue
+            movementMasterToggle:Set(newState)
+        end
+        
+        task.wait(0.2)
+        movementKeybindDebounce = false
+    end
+})
+
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == movementToggleKeybind then
+        if movementKeybindDebounce then return end
+        movementKeybindDebounce = true
+        
+        local newState = not movementMasterToggle.CurrentValue
+        movementMasterToggle:Set(newState)
+        
+        task.wait(0.2)
+        movementKeybindDebounce = false
+    end
+end)
+
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid")
+    task.wait(0.5)
+    pcall(function()
+        character.Humanoid.WalkSpeed = walkSpeed
+        character.Humanoid.JumpPower = jumpPower
+    end)
+end)
+
+local MovementSection = FlyTab:CreateSection("Fly")
+
+local flyEnabled = false
+local flySpeed = 1000
+local flyConnections = {}
+local flyObjects = {}
+local flyKeybind = Enum.KeyCode.V
+local noClipKeybind = Enum.KeyCode.B -- Бинд для NoClip
+local ignoreCallbacks = true
+local showNotifications = true
+local keybindDebounce = false
+local noClipKeybindDebounce = false
+local noClipEnabled = false
+local smoothFlight = true
+
+local speedSlider, speedInput, keybindInput, flightToggle, noClipToggle, smoothToggle, noClipKeybindInput
+
+local function SafeSet(element, value)
+    if element and element.Set then
+        ignoreCallbacks = true
+        element:Set(value)
+        ignoreCallbacks = false
+        return true
+    end
+    return false
+end
+
+local function Notify(title, content, duration)
+    if showNotifications and Rayfield and Rayfield.Notify then
+        Rayfield:Notify({
+            Title = title,
+            Content = content,
+            Duration = duration or 3,
+            Image = nil
+        })
+    end
+end
+
+local function IsValidKey(key)
+    if not key then return false end
+    local invalidKeys = {
+        Enum.KeyCode.Unknown, Enum.KeyCode.ButtonR3, Enum.KeyCode.ButtonL3,
+        Enum.KeyCode.ButtonStart, Enum.KeyCode.ButtonSelect
+    }
+    
+    for _, invalidKey in pairs(invalidKeys) do
+        if key == invalidKey then return false end
+    end
+    return true
+end
+
+local function UpdateNoClip()
+    local player = game:GetService("Players").LocalPlayer
+    if not player or not player.Character then return end
+    
+    for _, part in ipairs(player.Character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not noClipEnabled
+        end
+    end
+end
+
+speedSlider = FlyTab:CreateSlider({
+    Name = "Скорость полёта",
+    Range = {100, 100000},
+    Increment = 100,
+    CurrentValue = flySpeed,
+    Suffix = "ед/с",
+    Flag = "FlightSpeedSlider",
+    Callback = function(value)
+        if ignoreCallbacks then return end
+        flySpeed = value
+        SafeSet(speedInput, value)
+    end
+})
+
+speedInput = FlyTab:CreateInput({
+    Name = "Ручной ввод скорости",
+    PlaceholderText = "Введите скорость (100-100000)",
+    RemoveTextAfterFocusLost = false,
+    NumbersOnly = true,
+    CharacterLimit = 6,
+    CurrentValue = tostring(flySpeed),
+    Flag = "FlightSpeedInput",
+    Callback = function(value)
+        if ignoreCallbacks then return end
+        local num = tonumber(value)
+        if num then
+            num = math.clamp(num, 100, 100000)
+            flySpeed = num
+            SafeSet(speedSlider, num)
+        else
+            SafeSet(speedInput, tostring(flySpeed))
+        end
+    end
+})
+
+keybindInput = FlyTab:CreateKeybind({
+    Name = "Клавиша активации полёта",
+    CurrentKeybind = "F",
+    HoldToInteract = false,
+    Flag = "FlightKeybind",
+    Callback = function(key)
+        if ignoreCallbacks then return end
+        
+        if key ~= flyKeybind then
+            if key and IsValidKey(key) then
+                flyKeybind = key
+                ignoreCallbacks = true
+                keybindInput:Set(tostring(key):gsub("Enum.KeyCode.", ""))
+                ignoreCallbacks = false
+                Notify("Настройки", "Клавиша полёта изменена на: "..tostring(key), 2)
+            else
+                ignoreCallbacks = true
+                keybindInput:Set(tostring(flyKeybind):gsub("Enum.KeyCode.", ""))
+                ignoreCallbacks = false
+            end
+        end
+    end
+})
+
+flightToggle = FlyTab:CreateToggle({
+    Name = "Включить полёт",
+    CurrentValue = flyEnabled,
+    Flag = "FlightToggle",
+    Callback = function(state)
+        if ignoreCallbacks then return end
+        
+        flyEnabled = state
+        if state then
+            SetupFlight()
+            Notify("Полёт", string.format("Полёт активирован!\nСкорость: %d", flySpeed), 5)
+        else
+            DisableFlight()
+            Notify("Полёт", "Полёт деактивирован", 2)
+        end
+    end
+})
+
+noClipToggle = FlyTab:CreateToggle({
+    Name = "Режим NoClip",
+    CurrentValue = noClipEnabled,
+    Flag = "NoClipToggle",
+    Callback = function(state)
+        noClipEnabled = state
+        UpdateNoClip()
+        Notify("NoClip", noClipEnabled and "Режим NoClip включен" or "Режим NoClip выключен", 2)
+    end
+})
+
+noClipKeybindInput = FlyTab:CreateKeybind({
+    Name = "Клавиша NoClip (B) Если не работает нажать 2 раза",
+    CurrentKeybind = "B",
+    HoldToInteract = false,
+    Flag = "NoClipKeybind",
+    Callback = function(key)
+        if noClipKeybindDebounce then return end
+        noClipKeybindDebounce = true
+        
+        if key ~= noClipKeybind then
+            if key and IsValidKey(key) then
+                noClipKeybind = key
+                ignoreCallbacks = true
+                noClipKeybindInput:Set(tostring(key):gsub("Enum.KeyCode.", ""))
+                ignoreCallbacks = false
+                Notify("Настройки", "Клавиша NoClip изменена на: "..tostring(key), 2)
+            else
+                ignoreCallbacks = true
+                noClipKeybindInput:Set(tostring(noClipKeybind):gsub("Enum.KeyCode.", ""))
+                ignoreCallbacks = false
+            end
+        else
+            local newState = not noClipToggle.CurrentValue
+            noClipToggle:Set(newState)
+        end
+        
+        task.wait(0.0)
+        noClipKeybindDebounce = false
+    end
+})
+
+smoothToggle = FlyTab:CreateToggle({
+    Name = "Плавный полёт",
+    CurrentValue = smoothFlight,
+    Flag = "SmoothFlightToggle",
+    Callback = function(state)
+        smoothFlight = state
+    end
+})
+
+function SetupFlight()
+    local player = game:GetService("Players").LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+
+    for _, obj in pairs(flyObjects) do
+        if obj and obj.Parent then
+            pcall(function() obj:Destroy() end)
+        end
+    end
+    flyObjects = {}
+
+    UpdateNoClip()
+
+    flyObjects.bodyGyro = Instance.new("BodyGyro")
+    flyObjects.bodyGyro.Name = "FlightGyro"
+    flyObjects.bodyGyro.P = 20000
+    flyObjects.bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    flyObjects.bodyGyro.CFrame = rootPart.CFrame
+    flyObjects.bodyGyro.Parent = rootPart
+
+    flyObjects.bodyVelocity = Instance.new("BodyVelocity")
+    flyObjects.bodyVelocity.Name = "FlightVelocity"
+    flyObjects.bodyVelocity.Velocity = Vector3.new(0, 0.1, 0)
+    flyObjects.bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    flyObjects.bodyVelocity.Parent = rootPart
+
+    humanoid.PlatformStand = true
+end
+
+local function FlightController()
+    if not flyEnabled then return end
+    
+    local player = game:GetService("Players").LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    
+    local input = game:GetService("UserInputService")
+    local moveVector = Vector3.new()
+    local cameraCFrame = camera.CFrame
+    local cameraLook = cameraCFrame.LookVector
+    local cameraRight = cameraCFrame.RightVector
+
+    if input:IsKeyDown(Enum.KeyCode.W) then moveVector = moveVector + cameraLook end
+    if input:IsKeyDown(Enum.KeyCode.S) then moveVector = moveVector - cameraLook end
+    if input:IsKeyDown(Enum.KeyCode.A) then moveVector = moveVector - cameraRight end
+    if input:IsKeyDown(Enum.KeyCode.D) then moveVector = moveVector + cameraRight end
+    if input:IsKeyDown(Enum.KeyCode.Space) then moveVector = moveVector + Vector3.new(0, 1, 0) end
+    if input:IsKeyDown(Enum.KeyCode.LeftControl) then moveVector = moveVector - Vector3.new(0, 1, 0) end
+
+    if moveVector.Magnitude > 0 then
+        moveVector = moveVector.Unit
+        moveVector = Vector3.new(
+            moveVector.X * flySpeed,
+            moveVector.Y * math.min(flySpeed / 2, 5000),
+            moveVector.Z * flySpeed
+        )
+    end
+
+    if flyObjects.bodyVelocity then
+        if smoothFlight then
+            flyObjects.bodyVelocity.Velocity = flyObjects.bodyVelocity.Velocity:Lerp(moveVector, 0.1)
+        else
+            flyObjects.bodyVelocity.Velocity = moveVector
+        end
+    end
+    if flyObjects.bodyGyro then
+        flyObjects.bodyGyro.CFrame = cameraCFrame
+    end
+end
+
+function DisableFlight()
+    local player = game:GetService("Players").LocalPlayer
+    if player and player.Character then
+        for _, part in ipairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+
+    for _, obj in pairs(flyObjects) do
+        if obj and obj.Parent then
+            pcall(function() obj:Destroy() end)
+        end
+    end
+    flyObjects = {}
+
+    if player and player.Character then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+    end
+end
+
+local function HandleKeybind()
+    if keybindDebounce then return end
+    keybindDebounce = true
+    
+    flyEnabled = not flyEnabled
+    SafeSet(flightToggle, flyEnabled)
+    
+    if flyEnabled then
+        SetupFlight()
+        Notify("Полёт", string.format("Полёт активирован!\nСкорость: %d", flySpeed), 3)
+    else
+        DisableFlight()
+        Notify("Полёт", "Полёт деактивирован", 2)
+    end
+    
+    task.wait(0.2)
+    keybindDebounce = false
+end
+
+flyConnections.heartbeat = game:GetService("RunService").Heartbeat:Connect(function()
+    FlightController()
+end)
+
+flyConnections.inputBegan = game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed or game:GetService("UserInputService"):GetFocusedTextBox() then return end
+    
+    -- Обработка бинда полета
+    if input.KeyCode == flyKeybind then
+        HandleKeybind()
+    end
+    
+    -- Обработка бинда NoClip
+    if input.KeyCode == noClipKeybind then
+        if noClipKeybindDebounce then return end
+        noClipKeybindDebounce = true
+        
+        local newState = not noClipToggle.CurrentValue
+        noClipToggle:Set(newState)
+        
+        task.wait(0.2)
+        noClipKeybindDebounce = false
+    end
+end)
+
+flyConnections.characterAdded = game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
+    if flyEnabled then
+        task.wait(0.5)
+        SetupFlight()
+    end
+    UpdateNoClip()
+end)
+
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(DisableFlight)
+
+task.spawn(function()
+    task.wait(1)
+    keybindInput:Set(tostring(flyKeybind):gsub("Enum.KeyCode.", ""))
+    noClipKeybindInput:Set(tostring(noClipKeybind):gsub("Enum.KeyCode.", ""))
+end)
+
+local TpToolSection = FlyTab:CreateSection("tptool")
+
+local tptoolEnabled = false
+local tptool = nil
+local tptoolConnection = nil
+
+local function CreateTpTool()
+    if tptool then
+        tptool:Destroy()
+        tptool = nil
+    end
+
+    tptool = Instance.new("Tool")
+    tptool.Name = "TeleportTool"
+    tptool.RequiresHandle = false
+    tptool.CanBeDropped = false
+
+    local player = game:GetService("Players").LocalPlayer
+    if player and player.Character then
+        tptool.Parent = player.Backpack
+    end
+
+    local function teleport()
+        local character = player.Character
+        if not character then return end
+        
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if not humanoidRootPart then return end
+        
+        local mouse = player:GetMouse()
+        local target = mouse.Hit.Position
+        
+        humanoidRootPart.CFrame = CFrame.new(target + Vector3.new(0, 3, 0))
+    end
+
+    tptoolConnection = tptool.Activated:Connect(teleport)
+end
+
+local function RemoveTpTool()
+    if tptool then
+        tptool:Destroy()
+        tptool = nil
+    end
+    if tptoolConnection then
+        tptoolConnection:Disconnect()
+        tptoolConnection = nil
+    end
+end
+
+local tptoolToggle = FlyTab:CreateToggle({
+    Name = "Включить TP Tool",
+    CurrentValue = tptoolEnabled,
+    Flag = "TpToolToggle",
+    Callback = function(state)
+        tptoolEnabled = state
+        if state then
+            CreateTpTool()
+            Rayfield:Notify({
+                Title = "TP Tool",
+                Content = "Инструмент добавлен в инвентарь. ЛКМ для телепортации.",
+                Duration = 5,
+                Image = nil
+            })
+        else
+            RemoveTpTool()
+            Rayfield:Notify({
+                Title = "TP Tool",
+                Content = "Инструмент удален.",
+                Duration = 3,
+                Image = nil
+            })
+        end
+    end
+})
+
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
+    if tptoolEnabled then
+        task.wait(1)
+        CreateTpTool()
+    end
+end)
+
+local Tab = Window:CreateTab("RIVALS", 4483362458)
+
+local Button = Tab:CreateButton({
+   Name = "Пароль NewUpdate",
+   Callback = function()
+   -- The function that takes place when the button is pressed
+   end,
+})
+
+Tab:CreateButton({
+    Name = "Запустить RIVALS AIM",
+    Callback = function()
+loadstring(game:HttpGet("https://pastebin.com/raw/gcUsjvks"))()       
+ Rayfield:Notify({
+            Title = "RIVALS AIM Loader",
+            Content = "RIVALS AIM успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end,
+})
+
+local Tab = Window:CreateTab("Brookhaven-RP", 4483362458)
+
+Tab:CreateButton({
+    Name = "Запустить Coquette Hub",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Daivd977/Deivd999/refs/heads/main/pessal"))()
+        Rayfield:Notify({
+            Title = "Coquette Hub Loader",
+            Content = "Coquette Hub успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end,
+})
+
+local Tab = Window:CreateTab("99 Nights in the Forest", 4483362458)
+
+Tab:CreateButton({
+    Name = "VoidWare",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VWExtra/main/NightsInTheForest.lua", true))()
+        Rayfield:Notify({
+            Title = "VoidWare Loader",
+            Content = "VoidWare успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end,
+})
+
+local Tab = Window:CreateTab("Other", 4483362458)
+
+-- Секция стандартных функций
+local ScriptsSection = Tab:CreateSection("Scripts")
+
+-- Автозагрузка скриптов (ваш оригинальный код)
+local autoLoadScripts = {
+    {
+        Name = "Infinite Yield",
+        URL = "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source",
+        Enabled = false
+    },
+    {
+        Name = "Dex",
+        URL = "https://raw.githubusercontent.com/infyiff/backup/main/dex.lua",
+        Enabled = false
+    }
+}
+
+for i, scriptInfo in ipairs(autoLoadScripts) do
+    Tab:CreateToggle({
+        Name = "Автозагрузка "..scriptInfo.Name,
+        CurrentValue = scriptInfo.Enabled,
+        Flag = "AutoLoad"..scriptInfo.Name,
+        Callback = function(state)
+            autoLoadScripts[i].Enabled = state
+            Rayfield:Notify({
+                Title = "Автозагрузка",
+                Content = scriptInfo.Name..(state and " будет загружаться автоматически" or " больше не будет загружаться автоматически"),
+                Duration = 3,
+                Image = nil
+            })
+        end
+    })
+end
+
+-- Секция Rejoin (новые функции)
+local RejoinSection = Tab:CreateSection("Rejoin Functions")
+
+-- Advanced Rejoin
+Tab:CreateButton({
+    Name = "Rejoin Server (Advanced)",
+    Callback = function()
+        local ts = game:GetService("TeleportService")
+        local plrs = game:GetService("Players")
+        
+        Rayfield:Notify({
+            Title = "Rejoin",
+            Content = "Переподключение к серверу...",
+            Duration = 3,
+            Image = nil
+        })
+
+        -- Автозапуск после телепортации
+        local launchScript = [[
+            task.wait(2)
+            if not _G.LevasHubLoaded then
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/ваш_репозиторий/LevasHub/main/main.lua"))()
+            end
+        ]]
+
+        if syn and syn.queue_on_teleport then
+            syn.queue_on_teleport(launchScript)
+        elseif queue_on_teleport then
+            queue_on_teleport(launchScript)
+        end
+
+        -- Основная попытка
+        local success = pcall(function()
+            ts:TeleportToPlaceInstance(game.PlaceId, game.JobId, plrs.LocalPlayer)
+        end)
+
+        -- Запасной вариант
+        if not success then
+            task.wait(2)
+            ts:Teleport(game.PlaceId, plrs.LocalPlayer)
+        end
+    end
+})
+
+-- Simple Rejoin
+Tab:CreateButton({
+    Name = "Rejoin Server (Simple)",
+    Callback = function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId)
+    end
+})
+
+-- Auto Rejoin при ошибках
+Tab:CreateToggle({
+    Name = "Auto Rejoin при ошибках",
+    CurrentValue = false,
+    Flag = "AutoRejoinToggle",
+    Callback = function(state)
+        _G.AutoRejoinEnabled = state
+        if state then
+            game:GetService("ScriptContext").Error:Connect(function(message)
+                if _G.AutoRejoinEnabled and string.find(message, "ThirdPartyUserService") then
+                    Rayfield:Notify({
+                        Title = "Автореконнект",
+                        Content = "Переподключение через 5 сек...",
+                        Duration = 5,
+                        Image = nil
+                    })
+                    task.wait(5)
+                    game:GetService("TeleportService"):Teleport(game.PlaceId)
+                end
+            end)
+        end
+    end
+})
+
+-- Оригинальные кнопки (ваш код)
+Tab:CreateButton({
+    Name = "Запустить Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+        Rayfield:Notify({
+            Title = "Infinite Yield",
+            Content = "Успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end
+})
+
+Tab:CreateButton({
+    Name = "Запустить Dex",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+        Rayfield:Notify({
+            Title = "Dex",
+            Content = "Успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end
+})
+
+Tab:CreateButton({
+    Name = "Esp",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Leshanchiks/My-scr/refs/heads/main/Esp"))()
+        Rayfield:Notify({
+            Title = "ESP",
+            Content = "Успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end
+})
+
+-- Поле для кастомных скриптов (ваш оригинальный код)
+local customScriptInput = Tab:CreateInput({
+    Name = "Загрузить свой скрипт",
+    PlaceholderText = "Вставьте URL скрипта",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        if text and text ~= "" then
+            local success, err = pcall(function()
+                loadstring(game:HttpGet(text))()
+            end)
+            
+            if success then
+                Rayfield:Notify({
+                    Title = "Успешно",
+                    Content = "Скрипт загружен!",
+                    Duration = 3,
+                    Image = nil
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Ошибка",
+                    Content = "Ошибка загрузки: "..tostring(err),
+                    Duration = 5,
+                    Image = nil
+                })
+            end
+        end
+    end,
+})
+
+-- Автозагрузка скриптов (ваш оригинальный код)
+local function AutoLoadScripts()
+    for _, scriptInfo in ipairs(autoLoadScripts) do
+        if scriptInfo.Enabled then
+            pcall(function()
+                loadstring(game:HttpGet(scriptInfo.URL))()
+            end)
+        end
+    end
+end
+
+task.spawn(function()
+    task.wait(2)
+    AutoLoadScripts()
+end)
