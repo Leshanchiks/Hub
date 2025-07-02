@@ -751,83 +751,6 @@ for i, scriptInfo in ipairs(autoLoadScripts) do
     })
 end
 
--- Секция Rejoin (новые функции)
-local RejoinSection = Tab:CreateSection("Rejoin Functions")
-
--- Advanced Rejoin
-Tab:CreateButton({
-    Name = "Rejoin Server (Advanced)",
-    Callback = function()
-        local ts = game:GetService("TeleportService")
-        local plrs = game:GetService("Players")
-        
-        Rayfield:Notify({
-            Title = "Rejoin",
-            Content = "Переподключение к серверу...",
-            Duration = 3,
-            Image = nil
-        })
-
-        -- Автозапуск после телепортации
-        local launchScript = [[
-            task.wait(2)
-            if not _G.LevasHubLoaded then
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/ваш_репозиторий/LevasHub/main/main.lua"))()
-            end
-        ]]
-
-        if syn and syn.queue_on_teleport then
-            syn.queue_on_teleport(launchScript)
-        elseif queue_on_teleport then
-            queue_on_teleport(launchScript)
-        end
-
-        -- Основная попытка
-        local success = pcall(function()
-            ts:TeleportToPlaceInstance(game.PlaceId, game.JobId, plrs.LocalPlayer)
-        end)
-
-        -- Запасной вариант
-        if not success then
-            task.wait(2)
-            ts:Teleport(game.PlaceId, plrs.LocalPlayer)
-        end
-    end
-})
-
--- Simple Rejoin
-Tab:CreateButton({
-    Name = "Rejoin Server (Simple)",
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(game.PlaceId)
-    end
-})
-
--- Auto Rejoin при ошибках
-Tab:CreateToggle({
-    Name = "Auto Rejoin при ошибках",
-    CurrentValue = false,
-    Flag = "AutoRejoinToggle",
-    Callback = function(state)
-        _G.AutoRejoinEnabled = state
-        if state then
-            game:GetService("ScriptContext").Error:Connect(function(message)
-                if _G.AutoRejoinEnabled and string.find(message, "ThirdPartyUserService") then
-                    Rayfield:Notify({
-                        Title = "Автореконнект",
-                        Content = "Переподключение через 5 сек...",
-                        Duration = 5,
-                        Image = nil
-                    })
-                    task.wait(5)
-                    game:GetService("TeleportService"):Teleport(game.PlaceId)
-                end
-            end)
-        end
-    end
-})
-
--- Оригинальные кнопки (ваш код)
 Tab:CreateButton({
     Name = "Запустить Infinite Yield",
     Callback = function()
@@ -896,6 +819,83 @@ local customScriptInput = Tab:CreateInput({
         end
     end,
 })
+
+-- Секция Rejoin (новые функции)
+local RejoinSection = Tab:CreateSection("Rejoin Functions")
+
+-- Advanced Rejoin
+Tab:CreateButton({
+    Name = "Rejoin Server (Advanced)",
+    Callback = function()
+        local ts = game:GetService("TeleportService")
+        local plrs = game:GetService("Players")
+        
+        Rayfield:Notify({
+            Title = "Rejoin",
+            Content = "Переподключение к серверу...",
+            Duration = 3,
+            Image = nil
+        })
+
+        -- Автозапуск после телепортации
+        local launchScript = [[
+            task.wait(2)
+            if not _G.LevasHubLoaded then
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Leshanchiks/Hub/refs/heads/main/Hub"))()
+            end
+        ]]
+
+        if syn and syn.queue_on_teleport then
+            syn.queue_on_teleport(launchScript)
+        elseif queue_on_teleport then
+            queue_on_teleport(launchScript)
+        end
+
+        -- Основная попытка
+        local success = pcall(function()
+            ts:TeleportToPlaceInstance(game.PlaceId, game.JobId, plrs.LocalPlayer)
+        end)
+
+        -- Запасной вариант
+        if not success then
+            task.wait(2)
+            ts:Teleport(game.PlaceId, plrs.LocalPlayer)
+        end
+    end
+})
+
+-- Simple Rejoin
+Tab:CreateButton({
+    Name = "Rejoin Server (Simple)",
+    Callback = function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId)
+    end
+})
+
+-- Auto Rejoin при ошибках
+Tab:CreateToggle({
+    Name = "Auto Rejoin при ошибках",
+    CurrentValue = false,
+    Flag = "AutoRejoinToggle",
+    Callback = function(state)
+        _G.AutoRejoinEnabled = state
+        if state then
+            game:GetService("ScriptContext").Error:Connect(function(message)
+                if _G.AutoRejoinEnabled and string.find(message, "ThirdPartyUserService") then
+                    Rayfield:Notify({
+                        Title = "Автореконнект",
+                        Content = "Переподключение через 5 сек...",
+                        Duration = 5,
+                        Image = nil
+                    })
+                    task.wait(5)
+                    game:GetService("TeleportService"):Teleport(game.PlaceId)
+                end
+            end)
+        end
+    end
+})
+
 
 -- Автозагрузка скриптов (ваш оригинальный код)
 local function AutoLoadScripts()
