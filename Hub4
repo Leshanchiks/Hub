@@ -687,53 +687,58 @@ game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character
     end
 end)
 
-local WaypointsTab = Window:CreateTab("Waypoint", 4483362458)
+local WaypointsTab = Window:CreateTab("Waypoints", 4483362458)
 
--- Храним только последний вейпойнт
+-- Переменные для хранения данных
 local lastWaypoint = nil
+local waypointName = "Unnamed"
+local infoLabel = WaypointsTab:CreateLabel("No waypoint saved")
+local waypointKeybind = Enum.KeyCode.T
+local waypointKeybindDebounce = false
 
--- Безопасное сохранение
-local function saveWaypoint()
-    pcall(function()
-        if writefile then
-            writefile("LevasHub_LastWaypoint.json", game:GetService("HttpService"):JSONEncode(lastWaypoint))
-        end
-    end)
-end
-
--- Безопасная загрузка
-local function loadWaypoint()
-    local success, result = pcall(function()
-        if isfile and readfile and isfile("LevasHub_LastWaypoint.json") then
-            return game:GetService("HttpService"):JSONDecode(readfile("LevasHub_LastWaypoint.json"))
-        end
-        return nil
-    end)
-    lastWaypoint = success and result or nil
-end
-
--- Загружаем при старте
-loadWaypoint()
-
--- Поле для имени вейпойнта
-local waypointNameInput = WaypointsTab:CreateInput({
-    Name = "Waypoint Name",
-    PlaceholderText = "Enter name (optional)",
-    RemoveTextAfterFocusLost = false,
-    Callback = function() end
-})
-
--- Безопасная телепортация
-local function safeTeleport(position)
-    pcall(function()
+-- Функция безопасной телепортации
+local function SafeTeleport(position)
+    local success, err = pcall(function()
         local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
             char.HumanoidRootPart.CFrame = CFrame.new(position)
         end
     end)
+    if not success then
+        warn("Teleport error:", err)
+    end
 end
 
--- Установка вейпойнта
+-- Функция телепортации к вейпойнту
+local function GotoWaypoint()
+    if not lastWaypoint then
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "No waypoint saved!",
+            Duration = 3
+        })
+        return
+    end
+
+    SafeTeleport(lastWaypoint.position)
+    Rayfield:Notify({
+        Title = "Teleported",
+        Content = string.format("Moved to '%s'", lastWaypoint.name),
+        Duration = 2
+    })
+end
+
+-- Поле для ввода имени
+local nameInput = WaypointsTab:CreateInput({
+    Name = "Waypoint Name",
+    PlaceholderText = "Enter waypoint name",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        waypointName = text ~= "" and text or "Unnamed"
+    end
+})
+
+-- Кнопка установки вейпойнта
 WaypointsTab:CreateButton({
     Name = "Set Waypoint",
     Callback = function()
@@ -742,68 +747,75 @@ WaypointsTab:CreateButton({
             Rayfield:Notify({
                 Title = "Error",
                 Content = "Character not found!",
-                Duration = 3,
-                Image = nil
+                Duration = 3
             })
             return
         end
-        
-        local name = waypointNameInput.CurrentValue or "Last Location"
-        local hrp = char.HumanoidRootPart
-        
+
         lastWaypoint = {
-            position = {hrp.Position.X, hrp.Position.Y, hrp.Position.Z},
-            name = name,
+            position = char.HumanoidRootPart.Position,
+            name = waypointName,
             timestamp = os.time()
         }
-        
-        saveWaypoint()
-        
+
+        infoLabel:Set(string.format("Saved: %s (%s)", 
+            lastWaypoint.name, 
+            os.date("%H:%M", lastWaypoint.timestamp)))
+
         Rayfield:Notify({
             Title = "Waypoint Set",
-            Content = "Location saved!",
-            Duration = 2,
-            Image = nil
+            Content = string.format("Saved '%s'", lastWaypoint.name),
+            Duration = 2
         })
     end
 })
 
--- Телепортация к вейпойнту
+-- Кнопка телепортации
 WaypointsTab:CreateButton({
     Name = "Goto Waypoint",
-    Callback = function()
-        if not lastWaypoint then
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "No waypoint saved!",
-                Duration = 3,
-                Image = nil
-            })
-            return
+    Callback = GotoWaypoint
+})
+
+-- Бинд для телепортации по клавише T
+WaypointsTab:CreateKeybind({
+    Name = "Teleport Keybind (T)",
+    CurrentKeybind = "T",
+    HoldToInteract = false,
+    Flag = "WaypointKeybind",
+    Callback = function(key)
+        if waypointKeybindDebounce then return end
+        waypointKeybindDebounce = true
+        
+        if key ~= waypointKeybind then
+            if key then
+                waypointKeybind = key
+                Rayfield:Notify({
+                    Title = "Waypoint",
+                    Content = "Клавиша телепортации изменена на: "..tostring(key),
+                    Duration = 2,
+                    Image = nil
+                })
+            end
+        else
+            GotoWaypoint()
         end
         
-        safeTeleport(Vector3.new(
-            lastWaypoint.position[1],
-            lastWaypoint.position[2],
-            lastWaypoint.position[3]
-        ))
-        
-        Rayfield:Notify({
-            Title = "Teleported",
-            Content = "Returned to saved location",
-            Duration = 2,
-            Image = nil
-        })
+        task.wait(0.2)
+        waypointKeybindDebounce = false
     end
 })
 
--- Информация о последнем вейпойнте
-if lastWaypoint then
-    WaypointsTab:CreateLabel("Last saved: "..lastWaypoint.name)
-    WaypointsTab:CreateLabel("Time: "..os.date("%H:%M:%S", lastWaypoint.timestamp))
-else
-    WaypointsTab:CreateLabel("No waypoints saved yet")
-end
+-- Обработчик ввода для бинда
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == waypointKeybind then
+        if waypointKeybindDebounce then return end
+        waypointKeybindDebounce = true
+        GotoWaypoint()
+        task.wait(0.2)
+        waypointKeybindDebounce = false
+    end
+end)
 
 local Tab = Window:CreateTab("Player list", 4483362458)
 
@@ -1035,7 +1047,7 @@ Tab:CreateButton({
         task.wait(1)
         
         -- Полный перезапуск скрипта
-        local scriptUrl = "https://raw.githubusercontent.com/Leshanchiks/Hub/refs/heads/main/Hub2" -- Замените на актуальную ссылку
+        local scriptUrl = "https://raw.githubusercontent.com/Leshanchiks/Hub/refs/heads/main/Hub3" -- Замените на актуальную ссылку
         loadstring(game:HttpGet(scriptUrl))()
     end
 })
