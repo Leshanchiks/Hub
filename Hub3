@@ -687,7 +687,7 @@ game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character
     end
 end)
 
-local WaypointsTab = Window:CreateTab("Waypoints", 4483362458)
+local WaypointsTab = Window:CreateTab("Waypoint", 4483362458)
 
 -- Храним только последний вейпойнт
 local lastWaypoint = nil
@@ -1035,7 +1035,7 @@ Tab:CreateButton({
         task.wait(1)
         
         -- Полный перезапуск скрипта
-        local scriptUrl = "ВАШ_ССЫЛКА_НА_СКРИПТ" -- Замените на актуальную ссылку
+        local scriptUrl = "https://raw.githubusercontent.com/Leshanchiks/Hub/refs/heads/main/Hub2" -- Замените на актуальную ссылку
         loadstring(game:HttpGet(scriptUrl))()
     end
 })
