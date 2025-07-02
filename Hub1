@@ -1,4 +1,23 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- Добавьте этот код сразу после загрузки Rayfield:
+local function SafeThirdPartyService()
+    local success, service = pcall(function()
+        return game:GetService("ThirdPartyUserService")
+    end)
+    if not success then
+        warn("ThirdPartyUserService не доступен")
+        return nil
+    end
+    return {
+        GetUserInfo = function(userId)
+            local ok, result = pcall(service.GetUserInfo, service, userId)
+            return ok and result or nil
+        end
+        -- Добавьте другие методы, если нужны
+    }
+end
+
+local ThirdPartyService = SafeThirdPartyService()  -- Используйте это вместо прямых вызовов
 
 local Window = Rayfield:CreateWindow({
    Name = "Levas Hub",
@@ -20,6 +39,13 @@ local Window = Rayfield:CreateWindow({
       Key = {"GOIDA"}
    }
 })
+
+-- Функции файловой системы для совместимости
+if not isfile then
+    getgenv().isfile = function() return false end
+    getgenv().writefile = function() end
+    getgenv().readfile = function() return "[]" end
+end
 
 local FlyTab = Window:CreateTab("Main", 4483362458)
 
@@ -178,7 +204,7 @@ local movementMasterToggle = FlyTab:CreateToggle({
 
 local movementKeybind = FlyTab:CreateKeybind({
     Name = "Бинд для Movement (по умолчанию N)",
-    CurrentKeybind = "n",
+    CurrentKeybind = "N",
     HoldToInteract = false,
     Flag = "MovementKeybind",
     Callback = function(key)
@@ -228,14 +254,14 @@ game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character
     end)
 end)
 
-local MovementSection = FlyTab:CreateSection("Fly")
+local FlySection = FlyTab:CreateSection("Fly")
 
 local flyEnabled = false
-local flySpeed = 1000
+local flySpeed = 400
 local flyConnections = {}
 local flyObjects = {}
 local flyKeybind = Enum.KeyCode.V
-local noClipKeybind = Enum.KeyCode.B -- Бинд для NoClip
+local noClipKeybind = Enum.KeyCode.B
 local ignoreCallbacks = true
 local showNotifications = true
 local keybindDebounce = false
@@ -327,7 +353,7 @@ speedInput = FlyTab:CreateInput({
 
 keybindInput = FlyTab:CreateKeybind({
     Name = "Клавиша активации полёта",
-    CurrentKeybind = "F",
+    CurrentKeybind = "V",
     HoldToInteract = false,
     Flag = "FlightKeybind",
     Callback = function(key)
@@ -379,7 +405,7 @@ noClipToggle = FlyTab:CreateToggle({
 })
 
 noClipKeybindInput = FlyTab:CreateKeybind({
-    Name = "Клавиша NoClip (B) Если не работает нажать 2 раза",
+    Name = "Клавиша NoClip (B)",
     CurrentKeybind = "B",
     HoldToInteract = false,
     Flag = "NoClipKeybind",
@@ -404,7 +430,7 @@ noClipKeybindInput = FlyTab:CreateKeybind({
             noClipToggle:Set(newState)
         end
         
-        task.wait(0.0)
+        task.wait(0.2)
         noClipKeybindDebounce = false
     end
 })
@@ -547,12 +573,10 @@ end)
 flyConnections.inputBegan = game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
     if processed or game:GetService("UserInputService"):GetFocusedTextBox() then return end
     
-    -- Обработка бинда полета
     if input.KeyCode == flyKeybind then
         HandleKeybind()
     end
     
-    -- Обработка бинда NoClip
     if input.KeyCode == noClipKeybind then
         if noClipKeybindDebounce then return end
         noClipKeybindDebounce = true
@@ -581,7 +605,7 @@ task.spawn(function()
     noClipKeybindInput:Set(tostring(noClipKeybind):gsub("Enum.KeyCode.", ""))
 end)
 
-local TpToolSection = FlyTab:CreateSection("tptool")
+local TpToolSection = FlyTab:CreateSection("Teleport Tool")
 
 local tptoolEnabled = false
 local tptool = nil
@@ -663,20 +687,230 @@ game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character
     end
 end)
 
+local WaypointsTab = Window:CreateTab("Waypoints", 4483362458)
+
+-- Храним только последний вейпойнт
+local lastWaypoint = nil
+
+-- Безопасное сохранение
+local function saveWaypoint()
+    pcall(function()
+        if writefile then
+            writefile("LevasHub_LastWaypoint.json", game:GetService("HttpService"):JSONEncode(lastWaypoint))
+        end
+    end)
+end
+
+-- Безопасная загрузка
+local function loadWaypoint()
+    local success, result = pcall(function()
+        if isfile and readfile and isfile("LevasHub_LastWaypoint.json") then
+            return game:GetService("HttpService"):JSONDecode(readfile("LevasHub_LastWaypoint.json"))
+        end
+        return nil
+    end)
+    lastWaypoint = success and result or nil
+end
+
+-- Загружаем при старте
+loadWaypoint()
+
+-- Поле для имени вейпойнта
+local waypointNameInput = WaypointsTab:CreateInput({
+    Name = "Waypoint Name",
+    PlaceholderText = "Enter name (optional)",
+    RemoveTextAfterFocusLost = false,
+    Callback = function() end
+})
+
+-- Безопасная телепортация
+local function safeTeleport(position)
+    pcall(function()
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(position)
+        end
+    end)
+end
+
+-- Установка вейпойнта
+WaypointsTab:CreateButton({
+    Name = "Set Waypoint",
+    Callback = function()
+        local char = game.Players.LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Character not found!",
+                Duration = 3,
+                Image = nil
+            })
+            return
+        end
+        
+        local name = waypointNameInput.CurrentValue or "Last Location"
+        local hrp = char.HumanoidRootPart
+        
+        lastWaypoint = {
+            position = {hrp.Position.X, hrp.Position.Y, hrp.Position.Z},
+            name = name,
+            timestamp = os.time()
+        }
+        
+        saveWaypoint()
+        
+        Rayfield:Notify({
+            Title = "Waypoint Set",
+            Content = "Location saved!",
+            Duration = 2,
+            Image = nil
+        })
+    end
+})
+
+-- Телепортация к вейпойнту
+WaypointsTab:CreateButton({
+    Name = "Goto Waypoint",
+    Callback = function()
+        if not lastWaypoint then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "No waypoint saved!",
+                Duration = 3,
+                Image = nil
+            })
+            return
+        end
+        
+        safeTeleport(Vector3.new(
+            lastWaypoint.position[1],
+            lastWaypoint.position[2],
+            lastWaypoint.position[3]
+        ))
+        
+        Rayfield:Notify({
+            Title = "Teleported",
+            Content = "Returned to saved location",
+            Duration = 2,
+            Image = nil
+        })
+    end
+})
+
+-- Информация о последнем вейпойнте
+if lastWaypoint then
+    WaypointsTab:CreateLabel("Last saved: "..lastWaypoint.name)
+    WaypointsTab:CreateLabel("Time: "..os.date("%H:%M:%S", lastWaypoint.timestamp))
+else
+    WaypointsTab:CreateLabel("No waypoints saved yet")
+end
+
+local Tab = Window:CreateTab("Player list", 4483362458)
+
+local PlayersSection = Tab:CreateSection("Players on server")
+
+local playerButtons = {}
+
+local function updatePlayerList()
+    local newPlayers = {}
+    
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game.Players.LocalPlayer then
+            table.insert(newPlayers, player)
+        end
+    end
+    
+    for player, button in pairs(playerButtons) do
+        if not table.find(newPlayers, player) then
+            button.Visible = false
+            playerButtons[player] = nil
+        end
+    end
+    
+    for _, player in ipairs(newPlayers) do
+        if not playerButtons[player] then
+            playerButtons[player] = Tab:CreateButton({
+                Name = player.Name .. " (@"..player.DisplayName..")",
+                Callback = function()
+                    local localChar = game.Players.LocalPlayer.Character
+                    local targetChar = player.Character
+                    
+                    if localChar and targetChar then
+                        local hrp = localChar:FindFirstChild("HumanoidRootPart")
+                        local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
+                        
+                        if hrp and targetHrp then
+                            hrp.CFrame = targetHrp.CFrame * CFrame.new(0, 0, -3)
+                            Rayfield:Notify({
+                                Title = "Teleport",
+                                Content = "Teleported to "..player.Name,
+                                Duration = 3,
+                                Image = nil
+                            })
+                        end
+                    end
+                end
+            })
+        end
+    end
+end
+
+Tab:CreateButton({
+    Name = "Refresh Player List",
+    Callback = updatePlayerList
+})
+
+local SearchSection = Tab:CreateSection("Player Search")
+
+Tab:CreateInput({
+    Name = "Search Player",
+    PlaceholderText = "Enter player name",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        for player, button in pairs(playerButtons) do
+            local searchText = string.lower(text or "")
+            local playerName = string.lower(player.Name)
+            local displayName = string.lower(player.DisplayName)
+            
+            button.Visible = searchText == "" or 
+                           string.find(playerName, searchText) or 
+                           string.find(displayName, searchText)
+        end
+    end
+})
+
+game:GetService("Players").PlayerAdded:Connect(updatePlayerList)
+game:GetService("Players").PlayerRemoving:Connect(updatePlayerList)
+
+updatePlayerList()
+
+local Tab = Window:CreateTab("Arsenal", 4483362458)
+
+Tab:CreateButton({
+    Name = "vertex",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/vertex-peak/vertex/refs/heads/main/loadstring"))()
+        Rayfield:Notify({
+            Title = "vertex Loader",
+            Content = "vertex успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end,
+})
+
 local Tab = Window:CreateTab("RIVALS", 4483362458)
 
-local Button = Tab:CreateButton({
-   Name = "Пароль NewUpdate",
-   Callback = function()
-   -- The function that takes place when the button is pressed
-   end,
+Tab:CreateButton({
+    Name = "Пароль NewUpdate",
+    Callback = function() end,
 })
 
 Tab:CreateButton({
     Name = "Запустить RIVALS AIM",
     Callback = function()
-loadstring(game:HttpGet("https://pastebin.com/raw/gcUsjvks"))()       
- Rayfield:Notify({
+        loadstring(game:HttpGet("https://pastebin.com/raw/gcUsjvks"))()       
+        Rayfield:Notify({
             Title = "RIVALS AIM Loader",
             Content = "RIVALS AIM успешно запущен!",
             Duration = 3,
@@ -717,10 +951,21 @@ Tab:CreateButton({
 
 local Tab = Window:CreateTab("Other", 4483362458)
 
--- Секция стандартных функций
-local ScriptsSection = Tab:CreateSection("Scripts")
+local ScriptsSection = Tab:CreateSection("Other Functions")
 
--- Автозагрузка скриптов (ваш оригинальный код)
+Tab:CreateButton({
+    Name = "Rejoin",
+    Callback = function()
+        Rayfield:Notify({
+            Title = "Rejoin",
+            Content = "Переподключаемся к серверу...",
+            Duration = 3,
+            Image = nil
+        })
+        game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
+    end,
+})
+
 local autoLoadScripts = {
     {
         Name = "Infinite Yield",
@@ -751,153 +996,6 @@ for i, scriptInfo in ipairs(autoLoadScripts) do
     })
 end
 
-Tab:CreateButton({
-    Name = "Запустить Infinite Yield",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
-        Rayfield:Notify({
-            Title = "Infinite Yield",
-            Content = "Успешно запущен!",
-            Duration = 3,
-            Image = nil
-        })
-    end
-})
-
-Tab:CreateButton({
-    Name = "Запустить Dex",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
-        Rayfield:Notify({
-            Title = "Dex",
-            Content = "Успешно запущен!",
-            Duration = 3,
-            Image = nil
-        })
-    end
-})
-
-Tab:CreateButton({
-    Name = "Esp",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Leshanchiks/My-scr/refs/heads/main/Esp"))()
-        Rayfield:Notify({
-            Title = "ESP",
-            Content = "Успешно запущен!",
-            Duration = 3,
-            Image = nil
-        })
-    end
-})
-
--- Поле для кастомных скриптов (ваш оригинальный код)
-local customScriptInput = Tab:CreateInput({
-    Name = "Загрузить свой скрипт",
-    PlaceholderText = "Вставьте URL скрипта",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(text)
-        if text and text ~= "" then
-            local success, err = pcall(function()
-                loadstring(game:HttpGet(text))()
-            end)
-            
-            if success then
-                Rayfield:Notify({
-                    Title = "Успешно",
-                    Content = "Скрипт загружен!",
-                    Duration = 3,
-                    Image = nil
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Ошибка",
-                    Content = "Ошибка загрузки: "..tostring(err),
-                    Duration = 5,
-                    Image = nil
-                })
-            end
-        end
-    end,
-})
-
--- Секция Rejoin (новые функции)
-local RejoinSection = Tab:CreateSection("Rejoin Functions")
-
--- Advanced Rejoin
-Tab:CreateButton({
-    Name = "Rejoin Server (Advanced)",
-    Callback = function()
-        local ts = game:GetService("TeleportService")
-        local plrs = game:GetService("Players")
-        
-        Rayfield:Notify({
-            Title = "Rejoin",
-            Content = "Переподключение к серверу...",
-            Duration = 3,
-            Image = nil
-        })
-
-        -- Автозапуск после телепортации
-        local launchScript = [[
-            task.wait(2)
-            if not _G.LevasHubLoaded then
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/Leshanchiks/Hub/refs/heads/main/Hub"))()
-            end
-        ]]
-
-        if syn and syn.queue_on_teleport then
-            syn.queue_on_teleport(launchScript)
-        elseif queue_on_teleport then
-            queue_on_teleport(launchScript)
-        end
-
-        -- Основная попытка
-        local success = pcall(function()
-            ts:TeleportToPlaceInstance(game.PlaceId, game.JobId, plrs.LocalPlayer)
-        end)
-
-        -- Запасной вариант
-        if not success then
-            task.wait(2)
-            ts:Teleport(game.PlaceId, plrs.LocalPlayer)
-        end
-    end
-})
-
--- Simple Rejoin
-Tab:CreateButton({
-    Name = "Rejoin Server (Simple)",
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(game.PlaceId)
-    end
-})
-
--- Auto Rejoin при ошибках
-Tab:CreateToggle({
-    Name = "Auto Rejoin при ошибках",
-    CurrentValue = false,
-    Flag = "AutoRejoinToggle",
-    Callback = function(state)
-        _G.AutoRejoinEnabled = state
-        if state then
-            game:GetService("ScriptContext").Error:Connect(function(message)
-                if _G.AutoRejoinEnabled and string.find(message, "ThirdPartyUserService") then
-                    Rayfield:Notify({
-                        Title = "Автореконнект",
-                        Content = "Переподключение через 5 сек...",
-                        Duration = 5,
-                        Image = nil
-                    })
-                    task.wait(5)
-                    game:GetService("TeleportService"):Teleport(game.PlaceId)
-                end
-            end)
-        end
-    end
-})
-
-
--- Автозагрузка скриптов (ваш оригинальный код)
 local function AutoLoadScripts()
     for _, scriptInfo in ipairs(autoLoadScripts) do
         if scriptInfo.Enabled then
@@ -912,3 +1010,100 @@ task.spawn(function()
     task.wait(2)
     AutoLoadScripts()
 end)
+
+Tab:CreateButton({
+    Name = "Full Script Restart",
+    Callback = function()
+        Rayfield:Notify({
+            Title = "Restart",
+            Content = "Полный перезапуск скрипта...",
+            Duration = 3,
+            Image = nil
+        })
+        
+        -- Сохраняем текущие настройки перед перезапуском
+        if Rayfield and Rayfield.ConfigurationSaving and Rayfield.ConfigurationSaving.Enabled then
+            Rayfield:SaveConfiguration()
+        end
+        
+        -- Очищаем предыдущий интерфейс
+        if Rayfield then
+            Rayfield:Destroy()
+        end
+        
+        -- Небольшая задержка перед перезапуском
+        task.wait(1)
+        
+        -- Полный перезапуск скрипта
+        local scriptUrl = "ВАШ_ССЫЛКА_НА_СКРИПТ" -- Замените на актуальную ссылку
+        loadstring(game:HttpGet(scriptUrl))()
+    end
+})
+
+Tab:CreateButton({
+    Name = "Запустить Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+        Rayfield:Notify({
+            Title = "Script Loader",
+            Content = "Infinite Yield успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end,
+})
+
+Tab:CreateButton({
+    Name = "Запустить Dex",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+        Rayfield:Notify({
+            Title = "Script Loader",
+            Content = "Dex успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end,
+})
+
+Tab:CreateButton({
+    Name = "Esp",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Leshanchiks/My-scr/refs/heads/main/Esp"))()
+        Rayfield:Notify({
+            Title = "Script Loader",
+            Content = "Esp успешно запущен!",
+            Duration = 3,
+            Image = nil
+        })
+    end,
+})
+
+local customScriptInput = Tab:CreateInput({
+    Name = "Загрузить свой скрипт",
+    PlaceholderText = "Вставьте URL скрипта",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        if text and text ~= "" then
+            local success, err = pcall(function()
+                loadstring(game:HttpGet(text))()
+            end)
+            
+            if success then
+                Rayfield:Notify({
+                    Title = "Script Loader",
+                    Content = "Скрипт успешно загружен!",
+                    Duration = 3,
+                    Image = nil
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Ошибка",
+                    Content = "Не удалось загрузить скрипт: "..tostring(err),
+                    Duration = 5,
+                    Image = nil
+                })
+            end
+        end
+    end,
+})
