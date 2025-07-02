@@ -1047,7 +1047,7 @@ Tab:CreateButton({
         task.wait(1)
         
         -- Полный перезапуск скрипта
-        local scriptUrl = "https://raw.githubusercontent.com/Leshanchiks/Hub/refs/heads/main/Hub3" -- Замените на актуальную ссылку
+        local scriptUrl = "https://raw.githubusercontent.com/Leshanchiks/Hub/refs/heads/main/Hub5" -- Замените на актуальную ссылку
         loadstring(game:HttpGet(scriptUrl))()
     end
 })
