@@ -1357,15 +1357,6 @@ local BangButton = FunTab:CreateButton({
     end
 })
 
--- Горячая клавиша
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.F then
-        BangButton.Callback()
-    end
-end)
-
-FunTab:CreateLabel("Горячая клавиша: F")
 
 -- Восстановление после смерти
 LocalPlayer.CharacterAdded:Connect(function(character)
@@ -1484,6 +1475,42 @@ local toggle = FunTab:CreateToggle({
         end
     end
 })
+
+local keybind = FunTab:CreateKeybind({
+    Name = "Горячая клавиша (H)",
+    CurrentKeybind = "H",
+    HoldToInteract = false,
+    Flag = "FlingKeybind",
+    Callback = function(key)
+        if key ~= flingKeybind then
+            if key then
+                flingKeybind = key
+                Rayfield:Notify({
+                    Title = "Touch Fling",
+                    Content = "Клавиша изменена на: "..tostring(key),
+                    Duration = 2,
+                    Image = 4483362458
+                })
+            end
+        else
+            toggle:Set(not hiddenfling)
+        end
+    end
+})
+
+-- Обработчик ввода
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == flingKeybind then
+        if keybindDebounce then return end
+        keybindDebounce = true
+        
+        toggle:Set(not hiddenfling)
+        
+        task.wait(0.2)
+        keybindDebounce = false
+    end
+end)
 
 -- Автоматическая корректировка при изменении силы во время работы
 game:GetService("RunService").Heartbeat:Connect(function()
