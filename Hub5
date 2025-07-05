@@ -20,6 +20,8 @@ end
 local ThirdPartyService = SafeThirdPartyService()  -- Используйте это вместо прямых вызовов
 
 local Window = Rayfield:CreateWindow({
+
+	
    Name = "Levas Hub",
    LoadingTitle = "Levas Hub",
    LoadingSubtitle = "by mini.lèvas :3",
@@ -605,6 +607,8 @@ task.spawn(function()
     noClipKeybindInput:Set(tostring(noClipKeybind):gsub("Enum.KeyCode.", ""))
 end)
 
+
+
 local TpToolSection = FlyTab:CreateSection("Teleport Tool")
 
 local tptoolEnabled = false
@@ -687,6 +691,8 @@ game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character
     end
 end)
 
+
+
 local WaypointsTab = Window:CreateTab("Waypoints", 4483362458)
 
 -- Переменные для хранения данных
@@ -694,7 +700,9 @@ local lastWaypoint = nil
 local waypointName = "Unnamed"
 local infoLabel = WaypointsTab:CreateLabel("No waypoint saved")
 local waypointKeybind = Enum.KeyCode.T
+local setWaypointKeybind = Enum.KeyCode.Y
 local waypointKeybindDebounce = false
+local setWaypointKeybindDebounce = false
 
 -- Функция безопасной телепортации
 local function SafeTeleport(position)
@@ -728,6 +736,35 @@ local function GotoWaypoint()
     })
 end
 
+-- Функция установки вейпойнта
+local function SetWaypoint()
+    local char = game.Players.LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Character not found!",
+            Duration = 3
+        })
+        return
+    end
+
+    lastWaypoint = {
+        position = char.HumanoidRootPart.Position,
+        name = waypointName,
+        timestamp = os.time()
+    }
+
+    infoLabel:Set(string.format("Saved: %s (%s)", 
+        lastWaypoint.name, 
+        os.date("%H:%M", lastWaypoint.timestamp)))
+
+    Rayfield:Notify({
+        Title = "Waypoint Set",
+        Content = string.format("Saved '%s'", lastWaypoint.name),
+        Duration = 2
+    })
+end
+
 -- Поле для ввода имени
 local nameInput = WaypointsTab:CreateInput({
     Name = "Waypoint Name",
@@ -741,33 +778,7 @@ local nameInput = WaypointsTab:CreateInput({
 -- Кнопка установки вейпойнта
 WaypointsTab:CreateButton({
     Name = "Set Waypoint",
-    Callback = function()
-        local char = game.Players.LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "Character not found!",
-                Duration = 3
-            })
-            return
-        end
-
-        lastWaypoint = {
-            position = char.HumanoidRootPart.Position,
-            name = waypointName,
-            timestamp = os.time()
-        }
-
-        infoLabel:Set(string.format("Saved: %s (%s)", 
-            lastWaypoint.name, 
-            os.date("%H:%M", lastWaypoint.timestamp)))
-
-        Rayfield:Notify({
-            Title = "Waypoint Set",
-            Content = string.format("Saved '%s'", lastWaypoint.name),
-            Duration = 2
-        })
-    end
+    Callback = SetWaypoint
 })
 
 -- Кнопка телепортации
@@ -805,15 +816,55 @@ WaypointsTab:CreateKeybind({
     end
 })
 
--- Обработчик ввода для бинда
+-- Бинд для установки вейпойнта по клавише Y
+WaypointsTab:CreateKeybind({
+    Name = "Set Waypoint Keybind (Y)",
+    CurrentKeybind = "Y",
+    HoldToInteract = false,
+    Flag = "SetWaypointKeybind",
+    Callback = function(key)
+        if setWaypointKeybindDebounce then return end
+        setWaypointKeybindDebounce = true
+        
+        if key ~= setWaypointKeybind then
+            if key then
+                setWaypointKeybind = key
+                Rayfield:Notify({
+                    Title = "Waypoint",
+                    Content = "Клавиша установки вейпойнта изменена на: "..tostring(key),
+                    Duration = 2,
+                    Image = nil
+                })
+            end
+        else
+            SetWaypoint()
+        end
+        
+        task.wait(0.2)
+        setWaypointKeybindDebounce = false
+    end
+})
+
+-- Обработчики ввода для биндов
 game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
     if processed then return end
+    
+    -- Обработка бинда телепортации (T)
     if input.KeyCode == waypointKeybind then
         if waypointKeybindDebounce then return end
         waypointKeybindDebounce = true
         GotoWaypoint()
         task.wait(0.2)
         waypointKeybindDebounce = false
+    end
+    
+    -- Обработка бинда установки вейпойнта (Y)
+    if input.KeyCode == setWaypointKeybind then
+        if setWaypointKeybindDebounce then return end
+        setWaypointKeybindDebounce = true
+        SetWaypoint()
+        task.wait(0.2)
+        setWaypointKeybindDebounce = false
     end
 end)
 
@@ -960,6 +1011,496 @@ Tab:CreateButton({
         })
     end,
 })
+
+local FunTab = Window:CreateTab("Fun", 4483362458)
+local AnimationSection = FunTab:CreateSection("Animations")
+
+-- Настройки
+local jerkOffEnabled = false
+local jerkOffTool = nil
+local currentAnimationTrack = nil
+local animationSpeed = 1.0
+local lastResetTime = 0
+
+-- Конфигурация анимаций с улучшенными параметрами синхронизации
+local ANIMATIONS = {
+    R6 = {
+        ID = "rbxassetid://72042024",
+        BaseSpeed = 0.5,  -- Уменьшенная базовая скорость для лучшей синхронизации
+        LoopRange = {0.5, 0.6},
+        Priority = Enum.AnimationPriority.Action4
+    },
+    R15 = {
+        ID = "rbxassetid://698251653",
+        BaseSpeed = 0.6,
+        LoopRange = {0.5, 0.65},
+        Priority = Enum.AnimationPriority.Action4
+    }
+}
+
+-- Определение типа аватара с кешированием
+local function getRigType(player)
+    local character = player.Character
+    if not character then return "R6" end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return "R6" end
+    
+    return humanoid.RigType == Enum.HumanoidRigType.R15 and "R15" or "R6"
+end
+
+-- Улучшенная система анимации с синхронизацией
+local function manageAnimation()
+    if not jerkOffEnabled or not jerkOffTool then return end
+    
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    -- Очистка предыдущей анимации
+    if currentAnimationTrack then
+        currentAnimationTrack:Stop()
+        currentAnimationTrack:Destroy()
+        currentAnimationTrack = nil
+    end
+    
+    local rigType = getRigType(player)
+    local config = ANIMATIONS[rigType]
+    
+    -- Создание анимации
+    local anim = Instance.new("Animation")
+    anim.AnimationId = config.ID
+    currentAnimationTrack = humanoid:LoadAnimation(anim)
+    currentAnimationTrack.Priority = config.Priority
+    
+    -- Настройка скорости
+    local actualSpeed = config.BaseSpeed * animationSpeed
+    currentAnimationTrack:Play()
+    currentAnimationTrack:AdjustSpeed(actualSpeed)
+    currentAnimationTrack.TimePosition = config.LoopRange[1]
+    
+    -- Цикл синхронизации
+    coroutine.wrap(function()
+        local lastUpdate = time()
+        
+        while jerkOffEnabled and jerkOffTool and jerkOffTool.Parent do
+            local now = time()
+            
+            -- Принудительный сброс анимации каждые 1.5 секунды
+            if now - lastResetTime > 1.5 then
+                currentAnimationTrack:Stop()
+                currentAnimationTrack:Play()
+                currentAnimationTrack.TimePosition = config.LoopRange[1]
+                lastResetTime = now
+            end
+            
+            -- Плавное проигрывание анимации
+            if currentAnimationTrack then
+                if currentAnimationTrack.TimePosition >= config.LoopRange[2] then
+                    currentAnimationTrack.TimePosition = config.LoopRange[1]
+                end
+                
+                -- Периодическая корректировка скорости
+                if now - lastUpdate > 0.5 then
+                    currentAnimationTrack:AdjustSpeed(config.BaseSpeed * animationSpeed)
+                    lastUpdate = now
+                end
+            end
+            
+            task.wait(0.1) -- Фиксированный интервал обновления
+        end
+        
+        -- Корректная очистка
+        if currentAnimationTrack then
+            currentAnimationTrack:Stop()
+            currentAnimationTrack:Destroy()
+            currentAnimationTrack = nil
+        end
+    end)()
+end
+
+-- Создание инструмента с улучшенной синхронизацией
+local function createJerkOffTool()
+    if jerkOffTool then jerkOffTool:Destroy() end
+    
+    local player = game.Players.LocalPlayer
+    jerkOffTool = Instance.new("Tool")
+    jerkOffTool.Name = "Masturbation"
+    jerkOffTool.ToolTip = string.format("Speed: %.1fx (Synced)", animationSpeed)
+    jerkOffTool.RequiresHandle = false
+    
+    local backpack = player:FindFirstChildOfClass("Backpack")
+    if backpack then
+        jerkOffTool.Parent = backpack
+        
+        jerkOffTool.Equipped:Connect(function()
+            lastResetTime = time()
+            manageAnimation()
+        end)
+        
+        jerkOffTool.Unequipped:Connect(function()
+            if currentAnimationTrack then
+                currentAnimationTrack:Stop()
+                currentAnimationTrack:Destroy()
+                currentAnimationTrack = nil
+            end
+        end)
+    end
+end
+
+-- Слайдер скорости с ограничением для синхронизации
+FunTab:CreateSlider({
+    Name = "Masturbation Speed",
+    Range = {0.5, 2.0},  -- Ограниченный диапазон для стабильности
+    Increment = 0.1,
+    Suffix = "x",
+    CurrentValue = animationSpeed,
+    Callback = function(value)
+        animationSpeed = value
+        lastResetTime = time()
+        
+        if jerkOffTool then
+            jerkOffTool.ToolTip = string.format("Speed: %.1fx (Synced)", animationSpeed)
+        end
+        
+        if currentAnimationTrack then
+            local config = ANIMATIONS[getRigType(game.Players.LocalPlayer)]
+            currentAnimationTrack:AdjustSpeed(config.BaseSpeed * animationSpeed)
+        end
+    end
+})
+
+-- Основной переключатель
+FunTab:CreateToggle({
+    Name = "Give Masturbation Tool",
+    CurrentValue = false,
+    Callback = function(state)
+        jerkOffEnabled = state
+        if state then
+            createJerkOffTool()
+            Rayfield:Notify({
+                Title = "Tool Enabled",
+                Content = string.format("Speed: %.1fx | Synced for all players", animationSpeed),
+                Duration = 4,
+                Image = 4483362458
+            })
+        else
+            if jerkOffTool then jerkOffTool:Destroy() end
+            if currentAnimationTrack then
+                currentAnimationTrack:Stop()
+                currentAnimationTrack:Destroy()
+                currentAnimationTrack = nil
+            end
+        end
+    end
+})
+
+-- Автоматическое восстановление при смерти
+game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
+    if jerkOffEnabled then
+        task.wait(1) -- Важно для полной загрузки персонажа
+        createJerkOffTool()
+    end
+end)
+
+-- Периодическая проверка состояния
+game:GetService("RunService").Heartbeat:Connect(function()
+    if jerkOffEnabled and jerkOffTool and not jerkOffTool.Parent then
+        createJerkOffTool()
+    end
+end)
+
+local BangSection = FunTab:CreateSection("Bang V2")
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+
+-- Настройки
+local following = false
+local targetPlayer = nil
+local animationId = "189854234"
+local backupAnimationId = "182789003"
+local animator = nil
+local animationSpeed = 1.0
+local lastCFrame = nil
+local debounce = false
+
+-- Поле ввода для цели
+local TargetInput = FunTab:CreateInput({
+    Name = "Цель Bang V2",
+    PlaceholderText = "Имя игрока",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        -- Сохраняем введенное имя
+    end
+})
+
+-- Ползунок скорости
+local SpeedSlider = FunTab:CreateSlider({
+    Name = "Скорость Bang",
+    Range = {0.5, 3.0},
+    Increment = 0.1,
+    Suffix = "x",
+    CurrentValue = animationSpeed,
+    Callback = function(value)
+        animationSpeed = value
+        if animator then animator:AdjustSpeed(value) end
+    end
+})
+
+-- Кнопка активации
+local BangButton = FunTab:CreateButton({
+    Name = "Активировать Bang V2",
+    Callback = function()
+        if debounce then return end
+        debounce = true
+        
+        following = not following
+        
+        if following then
+            -- Поиск цели
+            local targetName = TargetInput.CurrentValue:lower()
+            targetPlayer = nil
+            
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    if string.find(player.Name:lower(), targetName) or 
+                       (player.DisplayName and string.find(player.DisplayName:lower(), targetName)) then
+                        targetPlayer = player
+                        break
+                    end
+                end
+            end
+            
+            if targetPlayer and targetPlayer.Character then
+                -- Настройка анимации
+                local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    local animation = Instance.new("Animation")
+                    animation.AnimationId = "rbxassetid://"..animationId
+                    animator = humanoid:LoadAnimation(animation)
+                    animator.Priority = Enum.AnimationPriority.Action4
+                    animator:AdjustSpeed(animationSpeed)
+                end
+
+                coroutine.wrap(function()
+                    while following and targetPlayer and targetPlayer.Character do
+                        local targetChar = targetPlayer.Character
+                        local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
+                        local localChar = LocalPlayer.Character
+                        local localHRP = localChar and localChar:FindFirstChild("HumanoidRootPart")
+                        
+                        if targetHRP and localHRP then
+                            local targetCF = targetHRP.CFrame
+                            local followCF = targetCF * CFrame.new(0, 0, 1.2)
+                            
+                            if not lastCFrame or (followCF.Position - lastCFrame.Position).Magnitude > 0.1 then
+                                lastCFrame = followCF
+                                localHRP.CFrame = CFrame.new(followCF.Position) *
+                                    CFrame.Angles(0, math.atan2(-targetCF.LookVector.X, -targetCF.LookVector.Z), 0)
+                            end
+                            
+                            if animator then
+                                animator:Play()
+                                task.wait(0.1)
+                                animator:Stop()
+                                task.wait(0.1)
+                            end
+                        else
+                            following = false
+                            break
+                        end
+                    end
+                    
+                    if animator then
+                        animator:Stop()
+                        animator:Destroy()
+                        animator = nil
+                    end
+                end)()
+                
+                Rayfield:Notify({
+                    Title = "Bang V2",
+                    Content = "Активировано для "..targetPlayer.Name,
+                    Duration = 3,
+                    Image = 4483362458
+                })
+            else
+                following = false
+                Rayfield:Notify({
+                    Title = "Ошибка",
+                    Content = "Игрок не найден!",
+                    Duration = 3,
+                    Image = 7733960981
+                })
+            end
+        else
+            if animator then
+                animator:Stop()
+                animator:Destroy()
+                animator = nil
+            end
+            
+            Rayfield:Notify({
+                Title = "Bang V2",
+                Content = "Деактивировано",
+                Duration = 2,
+                Image = 4483362458
+            })
+        end
+        
+        debounce = false
+    end
+})
+
+-- Горячая клавиша
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.F then
+        BangButton.Callback()
+    end
+end)
+
+FunTab:CreateLabel("Горячая клавиша: F")
+
+-- Восстановление после смерти
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if following and targetPlayer then
+        task.wait(1)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local animation = Instance.new("Animation")
+            animation.AnimationId = "rbxassetid://"..animationId
+            animator = humanoid:LoadAnimation(animation)
+            animator.Priority = Enum.AnimationPriority.Action4
+            animator:AdjustSpeed(animationSpeed)
+        end
+    end
+end)
+
+-- Остановка при выходе цели
+Players.PlayerRemoving:Connect(function(player)
+    if player == targetPlayer then
+        following = false
+        if animator then
+            animator:Stop()
+            animator:Destroy()
+            animator = nil
+        end
+        Rayfield:Notify({
+            Title = "Bang V2",
+            Content = "Цель покинула игру",
+            Duration = 3,
+            Image = 4483362458
+        })
+    end
+end)
+
+local FlingSection = FunTab:CreateSection("Fling")
+
+local hiddenfling = false
+local flingThread = nil
+local flingPower = 10000 -- Базовая сила (можно менять)
+local flingYForce = 10000 -- Вертикальная сила
+
+-- Ползунок для настройки силы
+local powerSlider = FunTab:CreateSlider({
+    Name = "Сила флинга",
+    Range = {1000, 50000},
+    Increment = 100,
+    Suffix = "ед.",
+    CurrentValue = flingPower,
+    Flag = "FlingPowerSlider",
+    Callback = function(value)
+        flingPower = value
+    end
+})
+
+-- Ползунок для вертикальной силы
+local yForceSlider = FunTab:CreateSlider({
+    Name = "Вертикальная сила",
+    Range = {1000, 30000},
+    Increment = 100,
+    Suffix = "ед.",
+    CurrentValue = flingYForce,
+    Flag = "FlingYForceSlider",
+    Callback = function(value)
+        flingYForce = value
+    end
+})
+
+-- Основной переключатель
+local toggle = FunTab:CreateToggle({
+    Name = "Fling",
+    CurrentValue = false,
+    Flag = "TouchFlingToggle",
+    Callback = function(state)
+        hiddenfling = state
+        
+        if hiddenfling then
+            -- Запускаем флинг с настройками силы
+            flingThread = coroutine.create(function()
+                local lp = game.Players.LocalPlayer
+                local RunService = game:GetService("RunService")
+                local c, hrp, vel, movel = nil, nil, nil, 0.1
+                
+                while hiddenfling do
+                    RunService.Heartbeat:Wait()
+                    c = lp.Character
+                    hrp = c and c:FindFirstChild("HumanoidRootPart")
+                    
+                    if hrp then
+                        vel = hrp.Velocity
+                        -- Применяем настройки силы
+                        hrp.Velocity = vel * flingPower + Vector3.new(0, flingYForce, 0)
+                        RunService.RenderStepped:Wait()
+                        hrp.Velocity = vel
+                        RunService.Stepped:Wait()
+                        hrp.Velocity = vel + Vector3.new(0, movel * (flingYForce/10000), 0)
+                        movel = -movel
+                    end
+                end
+            end)
+            coroutine.resume(flingThread)
+            
+            Rayfield:Notify({
+                Title = "Touch Fling PRO",
+                Content = string.format("Активирован (Сила: %d, Вертикаль: %d)", flingPower, flingYForce),
+                Duration = 3,
+                Image = 4483362458
+            })
+        else
+            hiddenfling = false
+            Rayfield:Notify({
+                Title = "Fling",
+                Content = "Деактивирован",
+                Duration = 2,
+                Image = 4483362458
+            })
+        end
+    end
+})
+
+-- Автоматическая корректировка при изменении силы во время работы
+game:GetService("RunService").Heartbeat:Connect(function()
+    if hiddenfling and game.Players.LocalPlayer.Character then
+        local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Velocity.Magnitude > flingPower * 1.5 then
+            hrp.Velocity = hrp.Velocity.Unit * flingPower
+        end
+    end
+end)
+
+-- Защита от обнаружения (как в оригинале)
+if not game:GetService("ReplicatedStorage"):FindFirstChild("juisdfj0i32i0eidsuf0iok") then
+    local detection = Instance.new("Decal")
+    detection.Name = "juisdfj0i32i0eidsuf0iok"
+    detection.Parent = game:GetService("ReplicatedStorage")
+end
 
 local Tab = Window:CreateTab("Other", 4483362458)
 
