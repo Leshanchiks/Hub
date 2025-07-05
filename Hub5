@@ -1552,6 +1552,339 @@ if not game:GetService("ReplicatedStorage"):FindFirstChild("juisdfj0i32i0eidsuf0
     detection.Parent = game:GetService("ReplicatedStorage")
 end
 
+
+local InvisibilitySection = FunTab:CreateSection("Invisibility System")
+
+-- Настройки
+local invisibilityKey = Enum.KeyCode.X
+local sound = Instance.new("Sound")
+sound.SoundId = "rbxassetid://942127495"
+sound.Volume = 1
+sound.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+-- Создаем переключатель первым, чтобы иметь ссылку на него
+local invisToggle = FunTab:CreateToggle({
+    Name = "Invisibility",
+    CurrentValue = false,
+    Flag = "InvisibilityToggle",
+    Callback = function(state)
+        -- Функция переключения невидимости
+        local character = game.Players.LocalPlayer.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        sound:Play()
+        
+        if state then
+            -- Включаем невидимость
+            local savedpos = character.HumanoidRootPart.CFrame
+            character:MoveTo(Vector3.new(-25.95, 84, 3537.55))
+            task.wait(0.15)
+            
+            local Seat = Instance.new('Seat', game.Workspace)
+            Seat.Anchored = false
+            Seat.CanCollide = false
+            Seat.Name = 'invischair'
+            Seat.Transparency = 1
+            Seat.Position = Vector3.new(-25.95, 84, 3537.55)
+            
+            local Weld = Instance.new("WeldConstraint", Seat)
+            Weld.Part0 = Seat
+            Weld.Part1 = character:FindFirstChild("HumanoidRootPart")
+            Seat.CFrame = savedpos
+            
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("Decal") then
+                    part.Transparency = 0.5
+                end
+            end
+            
+            Rayfield:Notify({
+                Title = "Invisibility",
+                Content = "Invisibility ENABLED",
+                Duration = 3,
+                Image = 4483362458
+            })
+        else
+            -- Выключаем невидимость
+            local invisChair = workspace:FindFirstChild('invischair')
+            if invisChair then invisChair:Destroy() end
+            
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("Decal") then
+                    part.Transparency = 0
+                end
+            end
+            
+            Rayfield:Notify({
+                Title = "Invisibility",
+                Content = "Invisibility DISABLED",
+                Duration = 3,
+                Image = 4483362458
+            })
+        end
+    end
+})
+
+-- Бинд теперь просто "нажимает" на переключатель
+FunTab:CreateKeybind({
+    Name = "Invisibility Keybind",
+    CurrentKeybind = "X",
+    HoldToInteract = false,
+    Flag = "InvisibilityKeybind",
+    Callback = function(key)
+        if key == invisibilityKey then
+            -- Просто меняем состояние переключателя
+            invisToggle:Set(not invisToggle.CurrentValue)
+        else
+            invisibilityKey = key
+            Rayfield:Notify({
+                Title = "Keybind Updated",
+                Content = "Invisibility key set to: "..tostring(key),
+                Duration = 2,
+                Image = 4483362458
+            })
+        end
+    end
+})
+
+-- Обработчик клавиш также использует переключатель
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed or input.KeyCode ~= invisibilityKey then return end
+    -- Имитируем нажатие на переключатель
+    invisToggle:Set(not invisToggle.CurrentValue)
+end)
+
+-- Обработчик респавна
+game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
+    if invisToggle.CurrentValue then
+        task.wait(1)
+        -- Имитируем выключение и включение для сброса состояния
+        invisToggle:Set(false)
+        task.wait()
+        invisToggle:Set(true)
+    end
+end)
+
+local AnimationsTab = Window:CreateTab("Animations", 4483362458)
+
+local AnimationsSection = AnimationsTab:CreateSection("FE Animations")
+
+-- Полная таблица всех анимаций
+local animations = {
+    ["Glitch Levitate"] = 313762630,
+    ["Full Swing"] = 218504594,
+    ["Moon Dance"] = 45834924,
+    ["Full Punch"] = 204062532,
+    ["Floor Faint"] = 181525546,
+    ["Crouch"] = 182724289,
+    ["Spin Dance"] = 429730430,
+    ["Jumping Jacks"] = 429681631,
+    ["Arm Detach"] = 33169583,
+    ["Mega Insane"] = 184574340,
+    ["Weird Move"] = 215384594,
+    ["Dino Walk"] = 204328711,
+    ["Floor Crawl"] = 282574440,
+    ["Spinner"] = 188632011,
+    ["Faint"] = 181526230,
+    ["Levitate"] = 313762630,
+    ["Loop Head"] = 35154961,
+    ["Head Throw"] = 35154961,
+    ["Clone Illusion"] = 215384594,
+    ["Dab"] = 183412246,
+    ["Barrel Roll"] = 136801964,
+    ["Insane"] = 33796059,
+    ["Sword Slam"] = 204295235,
+    ["Moving Dance"] = 429703734,
+    ["Arm Turbine"] = 259438880,
+    ["Super Punch"] = 126753849,
+    ["Scared"] = 180612465,
+    ["Loop Slam"] = 204295235,
+    ["Hero Jump"] = 184574340,
+    ["Spin Dance 2"] = 186934910,
+    ["Sword Slice"] = 35978879,
+    ["Floating Head"] = 121572214,
+    ["Insane Arms"] = 27432691,
+    ["Super Faint"] = 181525546,
+    ["FloatSit"] = 179224234,
+    ["Bow Down"] = 204292303,
+    ["Float Slash"] = 717879555,
+    ["Arms Out"] = 582384156,
+    ["Down Slash"] = 746398327,
+    ["R15 Spinner"] = 754658275,
+    ["Weird Zombie"] = 708553116,
+    ["Crazy Slash"] = 674871189,
+    ["Pull"] = 675025795,
+    ["Open"] = 582855105,
+    ["Circle Arm"] = 698251653,
+    ["Bend"] = 696096087,
+    ["Rotate Slash"] = 675025570,
+    ["Fling Arms"] = 754656200
+}
+
+local activeAnimations = {}
+local humanoid = nil
+
+-- Безопасное управление анимациями
+local function SafePlayAnimation(track)
+    if track and typeof(track) == "Instance" and track:IsA("AnimationTrack") then
+        pcall(function()
+            track:Play()
+        end)
+    end
+end
+
+local function SafeStopAnimation(track)
+    if track and typeof(track) == "Instance" and track:IsA("AnimationTrack") then
+        pcall(function()
+            track:Stop()
+        end)
+    end
+end
+
+local function SafeDestroyAnimation(track)
+    if track and typeof(track) == "Instance" and track:IsA("AnimationTrack") then
+        pcall(function()
+            track:Stop()
+            track:Destroy()
+        end)
+    end
+end
+
+-- Основная функция переключения анимации
+local function ToggleAnimation(animName)
+    if not humanoid or not humanoid.Parent then
+        Rayfield:Notify({
+            Title = "Ошибка",
+            Content = "Персонаж не найден!",
+            Duration = 2,
+            Image = 4483362458
+        })
+        return
+    end
+
+    local animId = animations[animName]
+    if not animId then return end
+
+    -- Если анимация уже активна - останавливаем
+    if activeAnimations[animName] then
+        SafeStopAnimation(activeAnimations[animName])
+        SafeDestroyAnimation(activeAnimations[animName])
+        activeAnimations[animName] = nil
+        
+        Rayfield:Notify({
+            Title = "Анимация",
+            Content = "Остановлено: "..animName,
+            Duration = 2,
+            Image = 4483362458
+        })
+        return
+    end
+
+    -- Создаем новую анимацию
+    local anim = Instance.new("Animation")
+    anim.AnimationId = "rbxassetid://"..animId
+
+    local success, animationTrack = pcall(function()
+        return humanoid:LoadAnimation(anim)
+    end)
+
+    if not success or not animationTrack then
+        Rayfield:Notify({
+            Title = "Ошибка",
+            Content = "Не удалось загрузить анимацию: "..animName,
+            Duration = 2,
+            Image = 4483362458
+        })
+        return
+    end
+
+    animationTrack.Priority = Enum.AnimationPriority.Action
+    animationTrack.Looped = true
+    SafePlayAnimation(animationTrack)
+
+    -- Сохраняем трек анимации
+    activeAnimations[animName] = animationTrack
+
+    -- Обработчик завершения анимации
+    animationTrack.Stopped:Connect(function()
+        if activeAnimations[animName] == animationTrack then
+            SafeDestroyAnimation(animationTrack)
+            activeAnimations[animName] = nil
+        end
+    end)
+
+    Rayfield:Notify({
+        Title = "Анимация",
+        Content = "Запущено: "..animName,
+        Duration = 2,
+        Image = 4483362458
+    })
+end
+
+-- Остановка всех анимаций
+local function StopAllAnimations()
+    for name, track in pairs(activeAnimations) do
+        SafeStopAnimation(track)
+        SafeDestroyAnimation(track)
+        activeAnimations[name] = nil
+    end
+    
+    Rayfield:Notify({
+        Title = "Анимации",
+        Content = "Все анимации остановлены",
+        Duration = 2,
+        Image = 4483362458
+    })
+end
+
+-- Создание кнопок для анимаций
+local function CreateAnimationButtons()
+    -- Сортируем анимации по алфавиту
+    local sortedNames = {}
+    for name in pairs(animations) do
+        table.insert(sortedNames, name)
+    end
+    table.sort(sortedNames)
+
+    -- Создаем кнопки для каждой анимации
+    for _, name in ipairs(sortedNames) do
+        AnimationsTab:CreateButton({
+            Name = name,
+            Callback = function()
+                ToggleAnimation(name)
+            end
+        })
+    end
+
+    -- Кнопка для остановки всех анимаций
+    AnimationsTab:CreateButton({
+        Name = "STOP ALL ANIMATIONS",
+        Callback = StopAllAnimations
+    })
+end
+
+-- Инициализация humanoid
+local function InitializeHumanoid()
+    local character = game.Players.LocalPlayer.Character
+    if character then
+        humanoid = character:FindFirstChildOfClass("Humanoid")
+    end
+end
+
+-- Обработчик изменения персонажа
+game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid")
+    InitializeHumanoid()
+    StopAllAnimations()
+end)
+
+-- Первоначальная инициализация
+InitializeHumanoid()
+CreateAnimationButtons()
+
+-- Остановка анимаций при потере фокуса
+game:GetService("UserInputService").WindowFocusReleased:Connect(StopAllAnimations)
+
 local Tab = Window:CreateTab("Other", 4483362458)
 
 local ScriptsSection = Tab:CreateSection("Other Functions")
@@ -1680,6 +2013,7 @@ Tab:CreateButton({
     end,
 })
 
+
 local customScriptInput = Tab:CreateInput({
     Name = "Загрузить свой скрипт",
     PlaceholderText = "Вставьте URL скрипта",
@@ -1708,6 +2042,8 @@ local customScriptInput = Tab:CreateInput({
         end
     end,
 })
+
+
 
 -- Финальное сохранение при завершении
 game:BindToClose(function()
