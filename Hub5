@@ -1,4 +1,5 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
 -- Добавьте этот код сразу после загрузки Rayfield:
 local function SafeThirdPartyService()
     local success, service = pcall(function()
@@ -20,26 +21,24 @@ end
 local ThirdPartyService = SafeThirdPartyService()  -- Используйте это вместо прямых вызовов
 
 local Window = Rayfield:CreateWindow({
-
-	
-   Name = "Levas Hub",
-   LoadingTitle = "Levas Hub",
-   LoadingSubtitle = "by mini.lèvas :3",
-   ConfigurationSaving = {
-      Enabled = false,
-      FolderName = nil,
-      FileName = "LevasHub"
-   },
-   KeySystem = true,
-   KeySettings = {
-      Title = "Key",
-      Subtitle = "Key System",
-      Note = "Мое любимое слово",
-      FileName = "My love word",
-      SaveKey = true,
-      GrabKeyFromSite = false,
-      Key = {"GOIDA"}
-   }
+    Name = "Levas Hub",
+    LoadingTitle = "Levas Hub",
+    LoadingSubtitle = "by mini.lèvas :3",
+    ConfigurationSaving = {
+        Enabled = true, -- Включено сохранение настроек
+        FolderName = "LevasHubConfig", -- Папка для сохранения
+        FileName = "Settings" -- Имя файла настроек
+    },
+    KeySystem = true,
+    KeySettings = {
+        Title = "Key",
+        Subtitle = "Key System",
+        Note = "Мое любимое слово",
+        FileName = "My love word",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"GOIDA"}
+    }
 })
 
 -- Функции файловой системы для совместимости
@@ -48,6 +47,33 @@ if not isfile then
     getgenv().writefile = function() end
     getgenv().readfile = function() return "[]" end
 end
+
+-- Функция для сохранения настроек
+local function SaveSettings()
+    if Rayfield and Rayfield.ConfigurationSaving and Rayfield.ConfigurationSaving.Enabled then
+        Rayfield:SaveConfiguration()
+    end
+end
+
+-- Обработчики сохранения при различных событиях
+game:GetService("Players").LocalPlayer.OnTeleport:Connect(SaveSettings)
+game:GetService("UserInputService").WindowFocusReleased:Connect(SaveSettings)
+
+-- Периодическое сохранение каждые 30 секунд
+coroutine.wrap(function()
+    while true do
+        task.wait(30)
+        SaveSettings()
+    end
+end)()
+
+-- Загрузка сохраненных настроек при запуске
+task.spawn(function()
+    task.wait(1)
+    if Rayfield and Rayfield.ConfigurationSaving and Rayfield.ConfigurationSaving.Enabled then
+        pcall(Rayfield.LoadConfiguration, Rayfield)
+    end
+end)
 
 local FlyTab = Window:CreateTab("Main", 4483362458)
 
@@ -607,8 +633,6 @@ task.spawn(function()
     noClipKeybindInput:Set(tostring(noClipKeybind):gsub("Enum.KeyCode.", ""))
 end)
 
-
-
 local TpToolSection = FlyTab:CreateSection("Teleport Tool")
 
 local tptoolEnabled = false
@@ -690,8 +714,6 @@ game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character
         CreateTpTool()
     end
 end)
-
-
 
 local WaypointsTab = Window:CreateTab("Waypoints", 4483362458)
 
@@ -947,9 +969,10 @@ game:GetService("Players").PlayerRemoving:Connect(updatePlayerList)
 
 updatePlayerList()
 
-local Tab = Window:CreateTab("Arsenal", 4483362458)
+local ScriptsTab = Window:CreateTab("Scripts", 4483362458)
 
-Tab:CreateButton({
+local ArsenalSection = ScriptsTab:CreateSection("Arsenal")
+ScriptsTab:CreateButton({
     Name = "vertex",
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/vertex-peak/vertex/refs/heads/main/loadstring"))()
@@ -962,14 +985,14 @@ Tab:CreateButton({
     end,
 })
 
-local Tab = Window:CreateTab("RIVALS", 4483362458)
-
-Tab:CreateButton({
+-- Секция RIVALS
+local RivalsSection = ScriptsTab:CreateSection("RIVALS")
+ScriptsTab:CreateButton({
     Name = "Пароль NewUpdate",
     Callback = function() end,
 })
 
-Tab:CreateButton({
+ScriptsTab:CreateButton({
     Name = "Запустить RIVALS AIM",
     Callback = function()
         loadstring(game:HttpGet("https://pastebin.com/raw/gcUsjvks"))()       
@@ -982,9 +1005,9 @@ Tab:CreateButton({
     end,
 })
 
-local Tab = Window:CreateTab("Brookhaven-RP", 4483362458)
-
-Tab:CreateButton({
+-- Секция Brookhaven-RP
+local BrookhavenSection = ScriptsTab:CreateSection("Brookhaven-RP")
+ScriptsTab:CreateButton({
     Name = "Запустить Coquette Hub",
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/Daivd977/Deivd999/refs/heads/main/pessal"))()
@@ -997,9 +1020,9 @@ Tab:CreateButton({
     end,
 })
 
-local Tab = Window:CreateTab("99 Nights in the Forest", 4483362458)
-
-Tab:CreateButton({
+-- Секция 99 Nights in the Forest
+local NightsSection = ScriptsTab:CreateSection("99 Nights in the Forest")
+ScriptsTab:CreateButton({
     Name = "VoidWare",
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VWExtra/main/NightsInTheForest.lua", true))()
@@ -1602,9 +1625,7 @@ Tab:CreateButton({
         })
         
         -- Сохраняем текущие настройки перед перезапуском
-        if Rayfield and Rayfield.ConfigurationSaving and Rayfield.ConfigurationSaving.Enabled then
-            Rayfield:SaveConfiguration()
-        end
+        SaveSettings()
         
         -- Очищаем предыдущий интерфейс
         if Rayfield then
@@ -1687,3 +1708,8 @@ local customScriptInput = Tab:CreateInput({
         end
     end,
 })
+
+-- Финальное сохранение при завершении
+game:BindToClose(function()
+    SaveSettings()
+end)
