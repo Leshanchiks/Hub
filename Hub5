@@ -320,8 +320,8 @@ end
 
 speedSlider = FlyTab:CreateSlider({
     Name = "Скорость полёта",
-    Range = {100, 100000},
-    Increment = 100,
+    Range = {1, 100000},
+    Increment = 1,
     CurrentValue = flySpeed,
     Suffix = "ед/с",
     Flag = "FlightSpeedSlider",
@@ -334,7 +334,7 @@ speedSlider = FlyTab:CreateSlider({
 
 speedInput = FlyTab:CreateInput({
     Name = "Ручной ввод скорости",
-    PlaceholderText = "Введите скорость (100-100000)",
+    PlaceholderText = "Введите скорость (1-100000)",
     RemoveTextAfterFocusLost = false,
     NumbersOnly = true,
     CharacterLimit = 6,
@@ -344,7 +344,7 @@ speedInput = FlyTab:CreateInput({
         if ignoreCallbacks then return end
         local num = tonumber(value)
         if num then
-            num = math.clamp(num, 100, 100000)
+            num = math.clamp(num, 1, 100000)
             flySpeed = num
             SafeSet(speedSlider, num)
         else
